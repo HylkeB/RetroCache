@@ -75,15 +75,14 @@ class CacheableRequest<R> internal constructor(
      * @param forceRefresh True if the data must come from the remote. False also allows cached data.
      * Cached data could either be cached in memory or in the CacheProvider.
      */
-    suspend fun getData(forceRefresh: Boolean): Result<R> {
+    suspend fun getData(forceRefresh: Boolean = false): Result<R> {
         realFetch(forceRefresh) // suspends until the state is fetching/refreshing or data, depending on the current state and the forceRefresh property
         val resultState = requestStateFlow
             .filter { resultState: RequestState<R> ->
                 when (resultState) {
-                    is RequestState.Fetching -> true // no data available, wait for data to become available
-                    is RequestState.Data.Refreshing -> forceRefresh // data available, but forceRefresh is requested so wait for new data
-                    is RequestState.Data.Success -> forceRefresh && resultState.fromCache // data available, but force refresh is true and result is from cache. Should immediately go to the refreshing state
-                    else -> false // either an end state or data state
+                    is RequestState.Fetching -> false // no data available, wait for data to become available
+                    is RequestState.Data.Refreshing -> !forceRefresh // data available, but forceRefresh is requested so wait for new data
+                    else -> true // an end state
                 }
             }
             .first()
