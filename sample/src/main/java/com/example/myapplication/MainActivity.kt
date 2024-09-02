@@ -19,14 +19,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.myapplication.holidays.Holiday
 import dagger.hilt.android.AndroidEntryPoint
 import io.github.hylkeb.retrocache.state.RequestState
-import kotlin.coroutines.coroutineContext
-import kotlinx.coroutines.flow.stateIn
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -71,7 +67,7 @@ fun MainScreen(
         Button(onClick = viewModel::refreshCachedHolidays) {
             Text(text = "Refresh holidays")
         }
-        val holidayState by viewModel.holidayState.collectAsState()
+        val holidayState = viewModel.holidayState.collectAsState().value
         when (holidayState) {
             is RequestState.Data.RefreshFailed -> { Text("Refresh failed") }
             is RequestState.Fetching,
@@ -80,12 +76,12 @@ fun MainScreen(
             else -> {}
         }
         if (holidayState is RequestState.Data) {
-            val withSmartCast = holidayState as RequestState.Data
-            Text(text = "Date of cached response: ${java.lang.String.format("%1\$TH:%1\$TM:%1\$TS", withSmartCast.dateTimeMillis)}")
-            Text(text = "Date of cached response: ${withSmartCast.dateTimeMillis}")
-            Text(text = "From cache?: ${withSmartCast.fromCache}")
+            holidayState.dateTimeMillis
+            Text(text = "Date of cached response: ${java.lang.String.format("%1\$TH:%1\$TM:%1\$TS", holidayState.dateTimeMillis)}")
+            Text(text = "Date of cached response: ${holidayState.dateTimeMillis}")
+            Text(text = "From cache?: ${holidayState.fromCache}")
             LazyColumn {
-                items(withSmartCast.result) {
+                items(holidayState.result) {
                     Row(modifier = Modifier
                         .fillMaxWidth()
                         .background(MaterialTheme.colorScheme.surface)

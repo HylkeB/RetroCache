@@ -6,6 +6,7 @@ import kotlin.time.toDuration
 import retrofit2.HttpException
 
 // todo documentation
+// todo proper compose annotations?
 sealed interface RequestState<T> {
     companion object {
         fun <T> initialState(): RequestState<T> = object : Fetching<T> { }
