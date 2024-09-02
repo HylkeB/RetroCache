@@ -21,7 +21,7 @@ import retrofit2.Converter
 class CacheableRequest<R> internal constructor(
     internal val call: Call<R>,
     internal val cacheConfiguration: CacheConfiguration,
-    parentJob: Job,
+    parentJob: Job, // TODO change so that this is a CoroutineScope
     internal val dateTimeProvider: DateTimeProvider,
     internal val responseBodyConverter: Converter<ResponseBody, R>,
     internal val cacheProvider: CacheProvider,
