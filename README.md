@@ -12,7 +12,21 @@ It has 3 very straight forward methods:
 
 The finite state machine that is created per request looks like this:
 
-[![](https://mermaid.ink/img/pako:eNp9UrtuwzAM_BWBoxEvHT10Sv0BzVh1YCXaFupHQklFgiD_XlkPxGmLapF4vCNPlK6gFk3QgHXoaG-wZ5zqryc5i7DeqndR18-iJacGM_cJLVFMvTAvLJoEig7NSPoP2h4dBlbcxgV1ISX5tkdgVaInt1KlnCvRLazolTomOyRRrPJDEzE6Hw2X0vFGCb8mZHulg1eKrL0nMhCTuVtxE2t8kMKJ1qojRV_t6ktwoob95Mm60nxdmyqbjsVrFv4jyGEbZxpkOX4Y8kaWeb_8P_hMqhvsYCKe0Ojw9HE6EtxAE0lowlEjf0qQ88pD75bDZVbQOPa0A3_U958CTYejpds3Snu4oQ?type=png)](https://mermaid.live/edit#pako:eNp9UrtuwzAM_BWBoxEvHT10Sv0BzVh1YCXaFupHQklFgiD_XlkPxGmLapF4vCNPlK6gFk3QgHXoaG-wZ5zqryc5i7DeqndR18-iJacGM_cJLVFMvTAvLJoEig7NSPoP2h4dBlbcxgV1ISX5tkdgVaInt1KlnCvRLazolTomOyRRrPJDEzE6Hw2X0vFGCb8mZHulg1eKrL0nMhCTuVtxE2t8kMKJ1qojRV_t6ktwoob95Mm60nxdmyqbjsVrFv4jyGEbZxpkOX4Y8kaWeb_8P_hMqhvsYCKe0Ojw9HE6EtxAE0lowlEjf0qQ88pD75bDZVbQOPa0A3_U958CTYejpds3Snu4oQ)
+```mermaid
+stateDiagram-v2
+    [*] --> Fetching
+    Fetching --> Error : Fetch failed
+    Fetching --> Data : Data loaded
+    Error --> Fetching : Get data<br/>Force refresh
+    Data --> Fetching : Data expired
+    state Data {
+        [*] --> Success
+        Success --> Refreshing : Data became stale<br/>Force refresh requested
+        Refreshing --> Success : Data refreshed
+        Refreshing --> RefreshFailed : Refresh failed
+        RefreshFailed --> Refreshing : Force refresh
+    }
+```
 
 ## Gradle dependency
 
