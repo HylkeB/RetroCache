@@ -1,10 +1,14 @@
 import com.vanniktech.maven.publish.SonatypeHost
+import dev.mokkery.MockMode
+import dev.mokkery.verify.VerifyMode
 
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
-    id("org.jetbrains.kotlin.plugin.serialization") // todo alias
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.maven.publish)
+    alias(libs.plugins.allopen)
+    alias(libs.plugins.mokkery)
 }
 
 android {
@@ -31,12 +35,25 @@ android {
     }
 }
 
+mokkery {
+    defaultVerifyMode.set(VerifyMode.exhaustiveOrder)
+    defaultMockMode.set(MockMode.autoUnit)
+}
+
+allOpen {
+    annotation("io.github.hylkeb.retrocache.utility.OpenForMocking")
+}
+
+
 dependencies {
     api("com.squareup.retrofit2:retrofit:2.11.0") // todo catalog
-    api("io.github.hylkeb:susstatemachine:1.0.0") // todo catalog
+    api("io.github.hylkeb:susstatemachine:1.1.0") // todo catalog
     api("com.squareup.okhttp3:okhttp:4.12.0") // todo catalog
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1") // todo catalog
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3") // todo catalog
+    testImplementation(kotlin("test"))
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.kotest.assertions)
 //    implementation(libs.core.ktx)
 //    implementation(libs.appcompat)
 //    implementation(libs.material)

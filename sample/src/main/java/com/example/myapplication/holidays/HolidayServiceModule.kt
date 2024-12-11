@@ -34,7 +34,7 @@ object HolidayServiceModule {
         return Retrofit.Builder()
             .baseUrl("https://date.nager.at")
             .client(okHttpClient)
-            .addCallAdapterFactory(CacheableRequestCallAdapterFactory(SupervisorJob(), cacheProvider, requestStateObserver = stateObserver))
+            .addCallAdapterFactory(CacheableRequestCallAdapterFactory(cacheProvider, requestStateObserver = stateObserver))
             .addConverterFactory(json.asConverterFactory("application/json; charset=UTF8".toMediaType()))
             .build()
             .create(HolidayService::class.java)

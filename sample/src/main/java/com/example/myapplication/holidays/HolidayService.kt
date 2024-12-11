@@ -26,7 +26,7 @@ interface HolidayService {
         @Tag cacheConfiguration: CacheConfiguration = CacheConfiguration(
             staleDuration = 3.days,
             expirationDuration = 7.days,
-            persistedCache = false
+            persistedCache = true
         )
     ): CacheableRequest<List<Holiday>>
 }
