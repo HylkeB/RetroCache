@@ -1,14 +1,20 @@
 package io.github.hylkeb.retrocache
 
+import io.github.hylkeb.retrocache.di.CacheableRequestDependencyContainer
+import io.github.hylkeb.retrocache.di.RealCacheableRequestDependencyContainer
 import io.github.hylkeb.retrocache.state.RequestState
-import io.github.hylkeb.retrocache.state.internal.IdleImpl
+import io.github.hylkeb.retrocache.state.internal.ErrorWithException
+import io.github.hylkeb.retrocache.state.internal.ErrorWithResponse
+import io.github.hylkeb.retrocache.state.internal.Fetching
+import io.github.hylkeb.retrocache.state.internal.Idle
 import io.github.hylkeb.retrocache.state.internal.InternalRequestState
+import io.github.hylkeb.retrocache.state.internal.RefreshFailedWithException
+import io.github.hylkeb.retrocache.state.internal.RefreshFailedWithResponse
+import io.github.hylkeb.retrocache.state.internal.Refreshing
+import io.github.hylkeb.retrocache.state.internal.Success
 import io.github.hylkeb.susstatemachine.StateMachine
-import io.github.hylkeb.susstatemachine.StateMachineImpl
 import io.github.hylkeb.susstatemachine.StateObserver
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -19,22 +25,23 @@ import retrofit2.Call
 import retrofit2.Converter
 
 class CacheableRequest<R> internal constructor(
-    internal val call: Call<R>,
-    internal val cacheConfiguration: CacheConfiguration,
-    parentJob: Job, // TODO change so that this is a CoroutineScope
-    internal val dateTimeProvider: DateTimeProvider,
-    internal val responseBodyConverter: Converter<ResponseBody, R>,
-    internal val cacheProvider: CacheProvider,
-    requestStateObserver: StateObserver?,
+    private val coroutineScope: CoroutineScope,
+    private val dependencyContainer: CacheableRequestDependencyContainer<R>
 ) {
-
-    private val coroutineScope = CoroutineScope(parentJob + Dispatchers.IO)
-
-    private val requestStateMachine: StateMachine<InternalRequestState<R>> = StateMachineImpl(
-        IdleImpl(this),
-        "RequestStateMachine for ${call.request().url.encodedPath}",
-        requestStateObserver
+    internal constructor(
+        coroutineScope: CoroutineScope,
+        call: Call<R>,
+        cacheConfiguration: CacheConfiguration,
+        dateTimeProvider: DateTimeProvider,
+        responseBodyConverter: Converter<ResponseBody, R>,
+        cacheProvider: CacheProvider,
+        requestStateObserver: StateObserver?,
+    ) : this(
+        coroutineScope,
+        RealCacheableRequestDependencyContainer(call, cacheConfiguration, dateTimeProvider, responseBodyConverter, cacheProvider, requestStateObserver)
     )
+
+    private val requestStateMachine: StateMachine<InternalRequestState<R>> by lazy { dependencyContainer.requestStateMachine }
 
     init {
         coroutineScope.launch {
@@ -42,27 +49,29 @@ class CacheableRequest<R> internal constructor(
         }
     }
 
-    private val requestStateFlow: Flow<RequestState<R>> = requestStateMachine.stateFlow
-        .mapNotNull<InternalRequestState<R>, RequestState<R>> {
-            when (it) {
-                is InternalRequestState.Data.RefreshFailed.WithException -> it
-                is InternalRequestState.Data.RefreshFailed.WithResponse -> it
-                is InternalRequestState.Data.Refreshing -> it
-                is InternalRequestState.Data.Success -> it
-                is InternalRequestState.Error.WithException -> it
-                is InternalRequestState.Error.WithResponse -> it
-                is InternalRequestState.Fetching -> it
-                is InternalRequestState.Idle -> null
+    private val requestStateFlow: Flow<RequestState<R>> by lazy {
+        requestStateMachine.stateFlow
+            .mapNotNull<InternalRequestState<R>, RequestState<R>> {
+                when (it) {
+                    is RefreshFailedWithException -> it
+                    is RefreshFailedWithResponse -> it
+                    is Refreshing -> it
+                    is Success -> it
+                    is ErrorWithException -> it
+                    is ErrorWithResponse -> it
+                    is Fetching -> it
+                    is Idle -> null
+                }
             }
-        }
+    }
 
     /**
      * Observe request state. Automatically initiates the request if it hasn't been done yet.
      */
     fun observeData(): Flow<RequestState<R>> {
-        if (requestStateMachine.stateFlow.replayCache[0] is InternalRequestState.Idle) {
+        if (requestStateMachine.stateFlow.replayCache[0] is Idle) {
             coroutineScope.launch {
-                (requestStateMachine.stateFlow.first() as? InternalRequestState.Idle)?.fetch(false)
+                (requestStateMachine.stateFlow.first() as? Idle)?.fetch(false)
             }
         }
         return requestStateFlow
@@ -105,13 +114,13 @@ class CacheableRequest<R> internal constructor(
     // TODO rename this method
     private suspend fun realFetch(forceRefresh: Boolean) {
         when (val currentState = requestStateMachine.stateFlow.first()) {
-            is InternalRequestState.Idle -> currentState.fetch(forceRefresh)
+            is Idle -> currentState.fetch(forceRefresh)
             is InternalRequestState.Error -> currentState.retry()
-            is InternalRequestState.Fetching -> {
+            is Fetching -> {
                 // Fetch in progress, if force refresh is requested, wait for it to become ready to know if it fetched from cache or not
                 if (forceRefresh) {
-                    val fetchResult = requestStateMachine.stateFlow.filter { it !is InternalRequestState.Fetching }.first()
-                    if (fetchResult is InternalRequestState.Data.Success && fetchResult.fromCache) {
+                    val fetchResult = requestStateMachine.stateFlow.filter { it !is Fetching }.first()
+                    if (fetchResult is Success && fetchResult.fromCache) {
                         fetchResult.refresh()
                     }
                 }
@@ -119,9 +128,9 @@ class CacheableRequest<R> internal constructor(
             is InternalRequestState.Data -> {
                 if (!forceRefresh) return
                 when (currentState) {
-                    is InternalRequestState.Data.Refreshing -> { /* Nothing needed to do, refresh already running. */ }
+                    is Refreshing -> { /* Nothing needed to do, refresh already running. */ }
                     is InternalRequestState.Data.RefreshFailed -> currentState.retry()
-                    is InternalRequestState.Data.Success -> currentState.refresh()
+                    is Success -> currentState.refresh()
                 }
             }
         }

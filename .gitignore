@@ -16,3 +16,4 @@ build
 .externalNativeBuild
 .cxx
 local.properties
+/.kotlin/

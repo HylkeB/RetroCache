@@ -1,22 +1,24 @@
 package io.github.hylkeb.retrocache.state.internal
 
-import io.github.hylkeb.retrocache.CacheableRequest
-import io.github.hylkeb.susstatemachine.StateImpl
+import io.github.hylkeb.retrocache.di.CacheableRequestDependencyContainer
+import io.github.hylkeb.retrocache.state.RequestState
+import io.github.hylkeb.retrocache.utility.OpenForMocking
 import io.github.hylkeb.susstatemachine.Transition
 import kotlinx.coroutines.CompletableJob
 import kotlinx.coroutines.Job
 import retrofit2.HttpException
 
-internal class ErrorWithResponseImpl<T>(
+@OpenForMocking
+internal class ErrorWithResponse<T>(
     override val exception: HttpException,
-    private val cacheableRequest: CacheableRequest<T>,
-) : StateImpl<InternalRequestState<T>>(), InternalRequestState.Error.WithResponse<T> {
+    private val dependencyContainer: CacheableRequestDependencyContainer<T>,
+) : InternalRequestState.Error<T>(), RequestState.Error.WithResponse<T> {
 
     private val retryRequested: CompletableJob = Job()
 
     override suspend fun enter(): Transition<InternalRequestState<T>> {
         retryRequested.join()
-        return Transition(FetchingImpl(true, cacheableRequest))
+        return Transition(Fetching(true, dependencyContainer))
     }
 
     override suspend fun retry() {
