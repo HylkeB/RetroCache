@@ -2,6 +2,7 @@
 _**Work in progress**_
 
 ![Maven Central Version](https://img.shields.io/maven-central/v/io.github.hylkeb/retrocache)
+![Visitor](https://visitor-badge.laobi.icu/badge?page_id=io.github.hylkeb-retrocache)
 
 RetroCache is a library on top of Retrofit2, which helps with caching of requests and responses.
 It exposes its data as a finite state machine, to be observed by the consumer of this library.
